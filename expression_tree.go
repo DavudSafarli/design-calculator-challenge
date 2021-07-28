@@ -1,5 +1,7 @@
 package calculator
 
+import "math"
+
 type Calculatable interface {
 	Calculate() float64
 }
@@ -46,4 +48,13 @@ type DivNode struct {
 
 func (n DivNode) Calculate() float64 {
 	return n.Left.Calculate() / n.Right.Calculate()
+}
+
+type PowNode struct {
+	Left  Calculatable
+	Right Calculatable
+}
+
+func (n PowNode) Calculate() float64 {
+	return math.Pow(n.Left.Calculate(), n.Right.Calculate())
 }

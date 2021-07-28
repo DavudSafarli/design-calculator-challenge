@@ -8,6 +8,7 @@ import (
 
 // BODMAS
 var precedence = map[int]int{
+	POW: 3,
 	MUL: 2,
 	DIV: 2,
 	ADD: 1,
@@ -52,6 +53,9 @@ func (c Calculator) buildExpressionTree(tokens []Token) Calculatable {
 		if operand.IsDivOperand() {
 			calculatables.Push(DivNode{a, b})
 		}
+		if operand.IsPowOperand() {
+			calculatables.Push(PowNode{a, b})
+		}
 	}
 
 	for _, token := range tokens {
@@ -63,7 +67,7 @@ func (c Calculator) buildExpressionTree(tokens []Token) Calculatable {
 		if token.IsOperand() {
 			for {
 				prevOperand, ok := operands.Top()
-				if ok {
+				if ok && prevOperand.Type != L_PAR {
 					if precedence[prevOperand.Type] >= precedence[token.Type] {
 						operands.Pop() // remove element
 						addOperandNode(prevOperand)
@@ -76,6 +80,19 @@ func (c Calculator) buildExpressionTree(tokens []Token) Calculatable {
 			}
 			operands.Push(token)
 			continue
+		}
+		if token.IsLeftParacentesis() {
+			operands.Push(token)
+			continue
+		}
+		if token.IsRightParacentesis() {
+			for {
+				prevOperand, _ := operands.Pop()
+				if prevOperand.Type == L_PAR {
+					break
+				}
+				addOperandNode(prevOperand)
+			}
 		}
 	}
 

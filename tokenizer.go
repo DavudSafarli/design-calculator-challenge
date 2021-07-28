@@ -9,10 +9,13 @@ import (
 
 // Operators include:
 const (
-	OP_ADD = '+'
-	OP_SUB = '-'
-	OP_MUL = '*'
-	OP_DIV = '/'
+	OP_ADD   = '+'
+	OP_SUB   = '-'
+	OP_MUL   = '*'
+	OP_DIV   = '/'
+	OP_POW   = '^'
+	OP_L_PAR = '('
+	OP_R_PAR = ')'
 )
 
 // Token Types include:
@@ -23,10 +26,15 @@ const (
 // DIV - addition operand (/)
 const (
 	NUM = iota
+
 	ADD
 	SUB
 	MUL
 	DIV
+	POW
+
+	L_PAR
+	R_PAR
 )
 
 type Token struct {
@@ -39,7 +47,7 @@ func (t Token) IsNum() bool {
 }
 
 func (t Token) IsOperand() bool {
-	return t.Type == ADD || t.Type == SUB || t.Type == MUL || t.Type == DIV
+	return t.Type == ADD || t.Type == SUB || t.Type == MUL || t.Type == DIV || t.Type == POW
 }
 
 func (t Token) IsAddOperand() bool {
@@ -53,6 +61,19 @@ func (t Token) IsMulOperand() bool {
 }
 func (t Token) IsDivOperand() bool {
 	return t.Type == DIV
+}
+func (t Token) IsPowOperand() bool {
+	return t.Type == POW
+}
+
+func (t Token) IsParacentesis() bool {
+	return t.Type == L_PAR || t.Type == R_PAR
+}
+func (t Token) IsLeftParacentesis() bool {
+	return t.Type == L_PAR
+}
+func (t Token) IsRightParacentesis() bool {
+	return t.Type == R_PAR
 }
 
 type Tokenizer struct {
@@ -114,6 +135,10 @@ func (t *Tokenizer) getNextToken() (Token, error) {
 		token, err := t.ReadOperator()
 		return token, err
 	}
+	if isParacentesis(ch) {
+		token, err := t.ReadParacentesis()
+		return token, err
+	}
 
 	// TODO: give more details about where the error was
 	return Token{}, fmt.Errorf("invalid input")
@@ -126,7 +151,10 @@ func isNumeric(ch rune) bool {
 	return ch >= '0' && ch <= '9'
 }
 func isOperator(ch rune) bool {
-	return ch == OP_ADD || ch == OP_SUB || ch == OP_MUL || ch == OP_DIV
+	return ch == OP_ADD || ch == OP_SUB || ch == OP_MUL || ch == OP_DIV || ch == OP_POW
+}
+func isParacentesis(ch rune) bool {
+	return ch == OP_L_PAR || ch == OP_R_PAR
 }
 
 // bypassWhitespaces reads and passes all contiguous white spaces
@@ -188,7 +216,7 @@ func (t *Tokenizer) ReadInt() (string, error) {
 	}
 
 	if !isNumeric(ch) {
-		return "", fmt.Errorf("expecting NUM Token, found non-numeric")
+		return "", fmt.Errorf("expecting Numeric value, but failed to find")
 	}
 
 	sb := strings.Builder{}
@@ -223,5 +251,24 @@ func (t *Tokenizer) ReadOperator() (Token, error) {
 	if ch == OP_DIV {
 		return Token{DIV, ""}, nil
 	}
-	return Token{}, fmt.Errorf("expecting Operator-type Token, but can't find")
+	if ch == OP_POW {
+		return Token{POW, ""}, nil
+	}
+	return Token{}, fmt.Errorf("expecting Operator, but failed to find")
+}
+
+// ReadParacentesis reads an Operator-type token(ADD, etc.). return error if fails to find any Operator type Token
+func (t *Tokenizer) ReadParacentesis() (Token, error) {
+	ch, err := t.readRune()
+	if err != nil {
+		return Token{}, err
+	}
+
+	if ch == OP_L_PAR {
+		return Token{L_PAR, ""}, nil
+	}
+	if ch == OP_R_PAR {
+		return Token{R_PAR, ""}, nil
+	}
+	return Token{}, fmt.Errorf("expecting Paracentesis, but failed to find")
 }

@@ -18,6 +18,8 @@ func TestTokenize(t *testing.T) {
 		{"-", []Token{{SUB, ""}}},
 		{"*", []Token{{MUL, ""}}},
 		{"/", []Token{{DIV, ""}}},
+		{"^", []Token{{POW, ""}}},
+		{"()", []Token{{L_PAR, ""}, {R_PAR, ""}}},
 		{"1+2", []Token{{NUM, "1"}, {ADD, ""}, {NUM, "2"}}},
 		{"1-2", []Token{{NUM, "1"}, {SUB, ""}, {NUM, "2"}}},
 		{
