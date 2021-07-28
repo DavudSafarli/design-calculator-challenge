@@ -12,25 +12,21 @@ func TestTokenize(t *testing.T) {
 		input string
 		want  []Token
 	}{
-		{
-			"1",
-			[]Token{{NUM, "1"}},
-		},
-		{
-			"  1  ",
-			[]Token{{NUM, "1"}},
-		},
-		{
-			"+",
-			[]Token{{ADD, ""}},
-		},
-		{
-			"1+2",
-			[]Token{{NUM, "1"}, {ADD, ""}, {NUM, "2"}},
-		},
+		{"123456789", []Token{{NUM, "123456789"}}},
+		{"  1  ", []Token{{NUM, "1"}}},
+		{"+", []Token{{ADD, ""}}},
+		{"-", []Token{{SUB, ""}}},
+		{"*", []Token{{MUL, ""}}},
+		{"/", []Token{{DIV, ""}}},
+		{"1+2", []Token{{NUM, "1"}, {ADD, ""}, {NUM, "2"}}},
+		{"1-2", []Token{{NUM, "1"}, {SUB, ""}, {NUM, "2"}}},
 		{
 			"  1  +  2  +  3  ",
 			[]Token{{NUM, "1"}, {ADD, ""}, {NUM, "2"}, {ADD, ""}, {NUM, "3"}},
+		},
+		{
+			"7-7/7+7*14",
+			[]Token{{NUM, "7"}, {SUB, ""}, {NUM, "7"}, {DIV, ""}, {NUM, "7"}, {ADD, ""}, {NUM, "7"}, {MUL, ""}, {NUM, "14"}},
 		},
 	}
 	for _, tt := range tests {

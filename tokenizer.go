@@ -8,17 +8,25 @@ import (
 )
 
 // Operators include:
-// + - ADD
 const (
 	OP_ADD = '+'
+	OP_SUB = '-'
+	OP_MUL = '*'
+	OP_DIV = '/'
 )
 
 // Token Types include:
 // NUM - can be an integer(1) or float(1.2)
 // ADD - addition operand (+)
+// SUB - addition operand (-)
+// MUL - addition operand (*)
+// DIV - addition operand (/)
 const (
 	NUM = iota
 	ADD
+	SUB
+	MUL
+	DIV
 )
 
 type Token struct {
@@ -31,11 +39,20 @@ func (t Token) IsNum() bool {
 }
 
 func (t Token) IsOperand() bool {
-	return t.Type == ADD
+	return t.Type == ADD || t.Type == SUB || t.Type == MUL || t.Type == DIV
 }
 
 func (t Token) IsAddOperand() bool {
 	return t.Type == ADD
+}
+func (t Token) IsSubOperand() bool {
+	return t.Type == SUB
+}
+func (t Token) IsMulOperand() bool {
+	return t.Type == MUL
+}
+func (t Token) IsDivOperand() bool {
+	return t.Type == DIV
 }
 
 type Tokenizer struct {
@@ -106,10 +123,10 @@ func isWhiteSpace(ch rune) bool {
 	return ch == ' ' || ch == '\t' || ch == '\n'
 }
 func isNumeric(ch rune) bool {
-	return ch > '0' && ch < '9'
+	return ch >= '0' && ch <= '9'
 }
 func isOperator(ch rune) bool {
-	return ch == OP_ADD
+	return ch == OP_ADD || ch == OP_SUB || ch == OP_MUL || ch == OP_DIV
 }
 
 // bypassWhitespaces reads and passes all contiguous white spaces
@@ -196,6 +213,15 @@ func (t *Tokenizer) ReadOperator() (Token, error) {
 
 	if ch == OP_ADD {
 		return Token{ADD, ""}, nil
+	}
+	if ch == OP_SUB {
+		return Token{SUB, ""}, nil
+	}
+	if ch == OP_MUL {
+		return Token{MUL, ""}, nil
+	}
+	if ch == OP_DIV {
+		return Token{DIV, ""}, nil
 	}
 	return Token{}, fmt.Errorf("expecting Operator-type Token, but can't find")
 }
