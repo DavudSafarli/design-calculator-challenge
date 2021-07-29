@@ -1,9 +1,9 @@
 package calculator
 
 import (
-	"fmt"
 	"strconv"
-	"strings"
+
+	"github.com/DavudSafarli/design-calculator-challenge/lexer"
 )
 
 // BODMAS
@@ -16,21 +16,24 @@ var precedence = map[int]int{
 }
 
 type Calculator struct {
-	tokenizer Tokenizer
+	lexer lexer.Lexer
 }
 
 func NewCalculator() Calculator {
+	lexer := buildLexerWithBODMASSupport()
 	return Calculator{
-		tokenizer: Tokenizer{},
+		lexer: lexer,
 	}
 }
 
 func (c Calculator) Eval(input string) float64 {
-	reader := strings.NewReader(input)
+	lexerTokens, _ := c.lexer.Lex(input)
+	tokens := make([]Token, len(lexerTokens))
 
-	tokens, _ := c.tokenizer.Tokenize(reader)
+	for _, v := range lexerTokens {
+		tokens = append(tokens, v.(Token))
+	}
 	headNode := c.buildExpressionTree(tokens)
-	fmt.Println(headNode)
 	return headNode.Calculate()
 }
 
@@ -106,4 +109,39 @@ func (c Calculator) buildExpressionTree(tokens []Token) Calculatable {
 	}
 	node, _ := postfix.Pop()
 	return node
+}
+
+func buildLexerWithBODMASSupport() lexer.Lexer {
+	// 1-char matcher function for Lexer
+	createOneCharMatcher := func(ch rune, tokenType int) lexer.MatcherFunc {
+		return func(l *lexer.Lexer) (token lexer.Token, found bool) {
+			r, _ := l.ReadNext()
+			if r == ch {
+				return Token{tokenType, ""}, true
+			}
+			l.Unread()
+			return nil, false
+		}
+	}
+
+	return lexer.NewLexer(lexer.Options{
+		Tokens:      []int{NUM, ADD, SUB, MUL, DIV, POW, L_PAR, R_PAR},
+		CharsToPass: []rune{' ', '\t', '\n'},
+		Matchers: map[int]lexer.MatcherFunc{
+			ADD:   createOneCharMatcher('+', ADD),
+			SUB:   createOneCharMatcher('-', SUB),
+			MUL:   createOneCharMatcher('*', MUL),
+			DIV:   createOneCharMatcher('/', DIV),
+			POW:   createOneCharMatcher('^', POW),
+			L_PAR: createOneCharMatcher('(', L_PAR),
+			R_PAR: createOneCharMatcher(')', R_PAR),
+			NUM: func(l *lexer.Lexer) (token lexer.Token, found bool) {
+				val, ok := l.ReadIntOrFloat()
+				if !ok {
+					return Token{}, false
+				}
+				return Token{NUM, val}, true
+			},
+		},
+	})
 }
