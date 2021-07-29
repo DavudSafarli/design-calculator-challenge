@@ -162,11 +162,10 @@ func buildLexerWithBODMASSupport() lexer.Lexer {
 	// 1-char matcher function for Lexer
 	createOneCharMatcher := func(ch rune, tokenType int) lexer.MatcherFunc {
 		return func(l *lexer.Lexer) (token lexer.Token, found bool) {
-			r, _ := l.ReadNext()
-			if r == ch {
+			ok := l.ReadChar(ch)
+			if ok {
 				return Token{tokenType, string(ch)}, true
 			}
-			l.Unread()
 			return nil, false
 		}
 	}

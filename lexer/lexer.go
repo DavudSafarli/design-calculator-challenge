@@ -1,9 +1,8 @@
 package lexer
 
 import (
-	"bufio"
+	"errors"
 	"fmt"
-	"io"
 	"strings"
 )
 
@@ -19,9 +18,15 @@ type Lexer struct {
 	tokens   []int
 	matchers map[int]MatcherFunc
 
-	r   *bufio.Reader
-	err error
+	pos      int
+	input    []rune
+	inputLen int
+	done     bool
 }
+
+// ErrMatcherForgotToUnread is returned when matcher function forgets to Unread.
+// Look at the TestLexeIncorrectUsage testcase to see an example
+var ErrMatcherForgotToUnread = errors.New("one of the matcher functions didn't unread after failing to find what he wanted")
 
 // Options represents the grammar rules.
 //
@@ -52,20 +57,15 @@ func (e UnknownSymbolError) Error() string {
 
 // Lex starts the lexical analysis and returns the slice of Tokens
 func (l *Lexer) Lex(input string) ([]Token, error) {
-
-	r := strings.NewReader(input)
-	br := bufio.NewReader(r)
-	l.r = br
-	l.err = nil
+	l.input = []rune(input)
+	l.inputLen = len(l.input)
+	l.pos = 0
+	l.done = false
 	tokens := []Token{}
 
-OUTER:
 	for {
-		if l.err == io.EOF {
+		if l.done {
 			break
-		}
-		if l.err != nil {
-			return nil, l.err
 		}
 		var token Token
 		var found bool
@@ -78,8 +78,9 @@ OUTER:
 			if found {
 				tokens = append(tokens, token)
 			}
-			if l.err != nil {
-				break OUTER
+
+			if l.done {
+				return tokens, nil
 			}
 
 			if found {
@@ -88,7 +89,10 @@ OUTER:
 		}
 
 		if !found {
-			ch, _ := l.ReadNext()
+			ch, done := l.ReadNext()
+			if done {
+				return nil, ErrMatcherForgotToUnread
+			}
 			return nil, UnknownSymbolError{ch}
 		}
 	}
@@ -99,22 +103,20 @@ OUTER:
 //
 // After using ReadNext and not finding what you want,
 // user is responsible for calling #Unread to not let other matchers pass that character
-func (l *Lexer) ReadNext() (rune, error) {
-	ch, _, err := l.r.ReadRune()
-	if err != nil && err != io.EOF {
-		panic(err)
+func (l *Lexer) ReadNext() (r rune, done bool) {
+	if l.pos >= l.inputLen {
+		l.done = true
+		return r, true
 	}
-	l.err = err
-	return ch, err
+	r = l.input[l.pos]
+	l.pos++
+	return r, false
 }
 
 // Unread unreads the last rune. Cannot be called more than one
 func (l *Lexer) Unread() {
-	if l.err == io.EOF {
-		l.err = nil
-	}
-	err := l.r.UnreadRune()
-	l.err = err
+	l.done = false
+	l.pos--
 }
 
 // ReadInt tries to read an integer (\d+) if. returns the number in string format if found
@@ -143,8 +145,8 @@ func (l *Lexer) ReadIntOrFloat() (string, bool) {
 
 // ReadChar tries to read the requeted char.
 func (l *Lexer) ReadChar(want rune) bool {
-	ch, err := l.ReadNext()
-	if err != nil {
+	ch, done := l.ReadNext()
+	if done {
 		return false
 	}
 	if ch == want {
@@ -156,8 +158,8 @@ func (l *Lexer) ReadChar(want rune) bool {
 
 // ReadBetween reads all next contiguous chars that are between [from, to]
 func (l *Lexer) ReadBetween(from, to rune) (string, bool) {
-	ch, err := l.ReadNext()
-	if err != nil {
+	ch, done := l.ReadNext()
+	if done {
 		return "", false
 	}
 
@@ -169,8 +171,8 @@ func (l *Lexer) ReadBetween(from, to rune) (string, bool) {
 	sb := strings.Builder{}
 	for isBetween(ch, from, to) {
 		sb.WriteRune(ch)
-		ch, err = l.ReadNext()
-		if err != nil {
+		ch, done = l.ReadNext()
+		if done {
 			return sb.String(), true
 		}
 	}
@@ -181,8 +183,8 @@ func (l *Lexer) ReadBetween(from, to rune) (string, bool) {
 
 // ReadUntil reads all next contiguous chars that are in the given `runes` slice
 func (l *Lexer) ReadUntil(runes []rune) (string, bool) {
-	ch, err := l.ReadNext()
-	if err != nil {
+	ch, done := l.ReadNext()
+	if done {
 		return "", false
 	}
 
@@ -202,8 +204,8 @@ func (l *Lexer) ReadUntil(runes []rune) (string, bool) {
 	sb := strings.Builder{}
 	for isOneOf(ch) {
 		sb.WriteRune(ch)
-		ch, err = l.ReadNext()
-		if err != nil {
+		ch, done = l.ReadNext()
+		if done {
 			return sb.String(), true
 		}
 	}

@@ -68,6 +68,7 @@ func TestLexer(t *testing.T) {
 		input string
 		want  []lexer.Token
 	}{
+		{"", []lexer.Token{}},
 		{"123456789", []lexer.Token{Token{NUM, "123456789"}}},
 		{"  1  ", []lexer.Token{Token{SPACE, "  "}, Token{NUM, "1"}, Token{SPACE, "  "}}},
 		{"+-*/^()", []lexer.Token{Token{ADD, ""}, Token{SUB, ""}, Token{MUL, ""}, Token{DIV, ""}, Token{POW, ""}, Token{L_PAR, ""}, Token{R_PAR, ""}}},
@@ -110,7 +111,36 @@ func TestLexeInvalidInput(t *testing.T) {
 	expected := lexer.UnknownSymbolError{'-'}
 
 	if err != expected {
-		t.Fatal(err)
+		t.Fatalf("\nexpected: %v\nactual  : %v", expected, err)
+	}
+}
+
+func TestLexeIncorrectUsage(t *testing.T) {
+	lex := lexer.NewLexer(lexer.Options{
+		Tokens: []int{ADD},
+		Matchers: map[int]lexer.MatcherFunc{
+			ADD: func(l *lexer.Lexer) (lexer.Token, bool) {
+				r, done := l.ReadNext()
+				if done {
+					return Token{}, false
+				}
+				if r == '+' {
+					return Token{ADD, ""}, true
+				}
+				// l.Unread() //
+				return Token{}, false
+			},
+		},
+	})
+
+	_, err := lex.Lex("+-")
+
+	expected := lexer.ErrMatcherForgotToUnread
+	if err != expected {
+		t.Fatalf("\nexpected: %v\nactual  : %v", expected, err)
 	}
 
+	if err != expected {
+		t.Fatal(err)
+	}
 }
