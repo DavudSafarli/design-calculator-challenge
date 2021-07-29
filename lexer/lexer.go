@@ -7,9 +7,14 @@ import (
 	"strings"
 )
 
+// Token represents any meaningful data extracted during the process of Lexical analysis.
 type Token interface{}
+
+// MatcherFunc is any user-defined function that tries to parse the input, extrant and return a Token.
+// Any type of Token(defined by user) can be created and returned.
 type MatcherFunc func(*Lexer) (Token Token, found bool)
 
+// Lexer takes the grammar rules and uses them to tokenize* the input
 type Lexer struct {
 	tokens   []int
 	matchers map[int]MatcherFunc
@@ -18,11 +23,17 @@ type Lexer struct {
 	err error
 }
 
+// Options represents the grammar rules.
+//
+// Tokens is a slice of unique TokenTypes to identify the Tokens.
+//
+// Matchers holds rules to find Tokens in the text. Keys of the map are the TokenTypes passed to `Tokens` options
 type Options struct {
 	Tokens   []int
 	Matchers map[int]MatcherFunc
 }
 
+// NewLexer creates a new Lexer with given options
 func NewLexer(ops Options) Lexer {
 	return Lexer{
 		tokens:   ops.Tokens,
@@ -30,6 +41,7 @@ func NewLexer(ops Options) Lexer {
 	}
 }
 
+// UnknownSymbolError is an error that Lexer returns when encountering a symbol that she can not recignize
 type UnknownSymbolError struct {
 	Symbol rune
 }
@@ -38,6 +50,7 @@ func (e UnknownSymbolError) Error() string {
 	return fmt.Sprintf("unknown character %q", e.Symbol)
 }
 
+// Lex starts the lexical analysis and returns the slice of Tokens
 func (l *Lexer) Lex(input string) ([]Token, error) {
 
 	r := strings.NewReader(input)
@@ -82,6 +95,10 @@ OUTER:
 	return tokens, nil
 }
 
+// ReadNext returns the next rune of the input
+//
+// After using ReadNext and not finding what you want,
+// user is responsible for calling #Unread to not let other matchers pass that character
 func (l *Lexer) ReadNext() (rune, error) {
 	ch, _, err := l.r.ReadRune()
 	if err != nil && err != io.EOF {
@@ -91,6 +108,7 @@ func (l *Lexer) ReadNext() (rune, error) {
 	return ch, err
 }
 
+// Unread unreads the last rune. Cannot be called more than one
 func (l *Lexer) Unread() {
 	if l.err == io.EOF {
 		l.err = nil
@@ -99,11 +117,13 @@ func (l *Lexer) Unread() {
 	l.err = err
 }
 
+// ReadInt tries to read an integer (\d+) if. returns the number in string format if found
 func (l *Lexer) ReadInt() (string, bool) {
 	str, ok := l.ReadBetween('0', '9')
 	return str, ok
 }
 
+// ReadIntOrFloat tries to read an integer or float (\d+\.\d+). returns the number in string format if found
 func (l *Lexer) ReadIntOrFloat() (string, bool) {
 	decimal, ok := l.ReadBetween('0', '9')
 	if !ok {
@@ -121,6 +141,7 @@ func (l *Lexer) ReadIntOrFloat() (string, bool) {
 	return decimal + "." + floating, ok
 }
 
+// ReadChar tries to read the requeted char.
 func (l *Lexer) ReadChar(want rune) bool {
 	ch, err := l.ReadNext()
 	if err != nil {
@@ -133,6 +154,7 @@ func (l *Lexer) ReadChar(want rune) bool {
 	return false
 }
 
+// ReadBetween reads all next contiguous chars that are between [from, to]
 func (l *Lexer) ReadBetween(from, to rune) (string, bool) {
 	ch, err := l.ReadNext()
 	if err != nil {
@@ -157,6 +179,7 @@ func (l *Lexer) ReadBetween(from, to rune) (string, bool) {
 	return sb.String(), true
 }
 
+// ReadUntil reads all next contiguous chars that are in the given `runes` slice
 func (l *Lexer) ReadUntil(runes []rune) (string, bool) {
 	ch, err := l.ReadNext()
 	if err != nil {
