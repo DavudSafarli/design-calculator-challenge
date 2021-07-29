@@ -7,17 +7,6 @@ import (
 	"strings"
 )
 
-// Operators include:
-const (
-	OP_ADD   = '+'
-	OP_SUB   = '-'
-	OP_MUL   = '*'
-	OP_DIV   = '/'
-	OP_POW   = '^'
-	OP_L_PAR = '('
-	OP_R_PAR = ')'
-)
-
 // Token Types include:
 // NUM - can be an integer(1) or float(1.2)
 // ADD - addition operand (+)
@@ -36,6 +25,17 @@ const (
 	L_PAR
 	R_PAR
 )
+
+// Operators include:
+var CH_TO_TOKEN_TYPE = map[rune]int{
+	'+': ADD,
+	'-': SUB,
+	'*': MUL,
+	'/': DIV,
+	'^': POW,
+	'(': L_PAR,
+	')': R_PAR,
+}
 
 type Token struct {
 	Type  int
@@ -66,9 +66,6 @@ func (t Token) IsPowOperand() bool {
 	return t.Type == POW
 }
 
-func (t Token) IsParacentesis() bool {
-	return t.Type == L_PAR || t.Type == R_PAR
-}
 func (t Token) IsLeftParacentesis() bool {
 	return t.Type == L_PAR
 }
@@ -135,13 +132,9 @@ func (t *Tokenizer) getNextToken() (Token, error) {
 		token, err := t.ReadOperator()
 		return token, err
 	}
-	if isParacentesis(ch) {
-		token, err := t.ReadParacentesis()
-		return token, err
-	}
 
 	// TODO: give more details about where the error was
-	return Token{}, fmt.Errorf("invalid input")
+	return Token{}, fmt.Errorf("invalid input, cannot recognize %q", ch)
 }
 
 func isWhiteSpace(ch rune) bool {
@@ -151,10 +144,8 @@ func isNumeric(ch rune) bool {
 	return ch >= '0' && ch <= '9'
 }
 func isOperator(ch rune) bool {
-	return ch == OP_ADD || ch == OP_SUB || ch == OP_MUL || ch == OP_DIV || ch == OP_POW
-}
-func isParacentesis(ch rune) bool {
-	return ch == OP_L_PAR || ch == OP_R_PAR
+	_, ok := CH_TO_TOKEN_TYPE[ch]
+	return ok
 }
 
 // bypassWhitespaces reads and passes all contiguous white spaces
@@ -238,37 +229,9 @@ func (t *Tokenizer) ReadOperator() (Token, error) {
 	if err != nil {
 		return Token{}, err
 	}
+	if tokenType, ok := CH_TO_TOKEN_TYPE[ch]; ok {
+		return Token{tokenType, ""}, nil
+	}
 
-	if ch == OP_ADD {
-		return Token{ADD, ""}, nil
-	}
-	if ch == OP_SUB {
-		return Token{SUB, ""}, nil
-	}
-	if ch == OP_MUL {
-		return Token{MUL, ""}, nil
-	}
-	if ch == OP_DIV {
-		return Token{DIV, ""}, nil
-	}
-	if ch == OP_POW {
-		return Token{POW, ""}, nil
-	}
 	return Token{}, fmt.Errorf("expecting Operator, but failed to find")
-}
-
-// ReadParacentesis reads an Operator-type token(ADD, etc.). return error if fails to find any Operator type Token
-func (t *Tokenizer) ReadParacentesis() (Token, error) {
-	ch, err := t.readRune()
-	if err != nil {
-		return Token{}, err
-	}
-
-	if ch == OP_L_PAR {
-		return Token{L_PAR, ""}, nil
-	}
-	if ch == OP_R_PAR {
-		return Token{R_PAR, ""}, nil
-	}
-	return Token{}, fmt.Errorf("expecting Paracentesis, but failed to find")
 }

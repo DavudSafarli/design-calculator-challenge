@@ -35,33 +35,38 @@ func (c Calculator) Eval(input string) float64 {
 }
 
 func (c Calculator) buildExpressionTree(tokens []Token) Calculatable {
-	var calculatables CalculatableStack
+	var postfix CalculatableStack
 	var operands TokenStack
 
+	// addOperandNode takes 2 node from stack, creates a new Expression Node like below,
+	//     +
+	//   /   \
+	//  a     b
+	// and pushes it back to the slice of postfix nodes
 	addOperandNode := func(operand Token) {
-		b, _ := calculatables.Pop()
-		a, _ := calculatables.Pop()
+		b, _ := postfix.Pop()
+		a, _ := postfix.Pop()
 		if operand.IsAddOperand() {
-			calculatables.Push(AddNode{a, b})
+			postfix.Push(AddNode{a, b})
 		}
 		if operand.IsSubOperand() {
-			calculatables.Push(SubNode{a, b})
+			postfix.Push(SubNode{a, b})
 		}
 		if operand.IsMulOperand() {
-			calculatables.Push(MulNode{a, b})
+			postfix.Push(MulNode{a, b})
 		}
 		if operand.IsDivOperand() {
-			calculatables.Push(DivNode{a, b})
+			postfix.Push(DivNode{a, b})
 		}
 		if operand.IsPowOperand() {
-			calculatables.Push(PowNode{a, b})
+			postfix.Push(PowNode{a, b})
 		}
 	}
 
 	for _, token := range tokens {
 		if token.IsNum() {
 			val, _ := strconv.ParseFloat(token.Value, 64)
-			calculatables.Push(NumNode{val})
+			postfix.Push(NumNode{val})
 			continue
 		}
 		if token.IsOperand() {
@@ -100,6 +105,6 @@ func (c Calculator) buildExpressionTree(tokens []Token) Calculatable {
 		operand, _ := operands.Pop()
 		addOperandNode(operand)
 	}
-	node, _ := calculatables.Pop()
+	node, _ := postfix.Pop()
 	return node
 }
