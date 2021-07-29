@@ -71,17 +71,16 @@ func (c Calculator) buildExpressionTree(tokens []Token) Calculatable {
 		}
 		if token.IsOperand() {
 			for {
-				prevOperand, ok := operands.Top()
-				if ok && prevOperand.Type != L_PAR {
-					if precedence[prevOperand.Type] >= precedence[token.Type] {
-						operands.Pop() // remove element
-						addOperandNode(prevOperand)
-					} else {
-						break
-					}
-				} else {
+				prevOperand, exists := operands.Top()
+				if !exists || prevOperand.Type == L_PAR {
 					break
 				}
+				if precedence[prevOperand.Type] < precedence[token.Type] {
+					break
+				}
+				operands.Pop() // remove element
+				addOperandNode(prevOperand)
+
 			}
 			operands.Push(token)
 			continue
