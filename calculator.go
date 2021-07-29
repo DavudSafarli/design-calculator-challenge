@@ -17,6 +17,7 @@ var precedence = map[int]int{
 	SUB: 1,
 }
 
+// Calculator evaluates the given arithmetic expression.
 type Calculator struct {
 	lexer lexer.Lexer
 }
@@ -68,7 +69,7 @@ func (c Calculator) eval(input string) (float64, error) {
 	invalidTokenPos, err := validateExpression(tokens)
 	if err != nil {
 		if invalidTokenPos != -1 {
-			startPos, endPos := getCharPosFromTokenPos(tokens, invalidTokenPos)
+			startPos, endPos := findTokenPositionInRawInput(tokens, invalidTokenPos)
 			return 0, EvalError{err, startPos, endPos}
 		}
 		return 0, EvalError{err, -1, -1}
@@ -78,6 +79,8 @@ func (c Calculator) eval(input string) (float64, error) {
 	return headNode.Calculate(), nil
 }
 
+// buildExpressionTree creates the expression tree and returns the head node
+// given the valid Infix slice of Tokens
 func (c Calculator) buildExpressionTree(tokens []Token) Calculatable {
 	var postfix CalculatableStack
 	var operators TokenStack
@@ -154,6 +157,7 @@ func (c Calculator) buildExpressionTree(tokens []Token) Calculatable {
 	return node
 }
 
+// buildLexerWithBODMASSupport creates and returns a Lexer with lexical support for BODMAS, and SPACE
 func buildLexerWithBODMASSupport() lexer.Lexer {
 	// 1-char matcher function for Lexer
 	createOneCharMatcher := func(ch rune, tokenType int) lexer.MatcherFunc {
@@ -245,7 +249,8 @@ func validateExpression(tokens []Token) (int, error) {
 	return 0, nil
 }
 
-func getCharPosFromTokenPos(tokens []Token, tokenPos int) (startPos, endPos int) {
+// findTokenPositionInRawInput find and returns the position of the Token in the Raw input
+func findTokenPositionInRawInput(tokens []Token, tokenPos int) (startPos, endPos int) {
 	for i := 0; i < tokenPos; i++ {
 		startPos += len(tokens[i].Value)
 	}
