@@ -10,6 +10,8 @@ const (
 	POW
 	L_PAR
 	R_PAR
+
+	SPACE
 )
 
 type Token struct {
@@ -23,6 +25,9 @@ func (t Token) IsNum() bool {
 
 func (t Token) IsOP() bool {
 	return t.Type == ADD || t.Type == SUB || t.Type == MUL || t.Type == DIV || t.Type == POW
+}
+func (t Token) IsSpace() bool {
+	return t.Type == SPACE
 }
 
 func (t Token) IsAddOP() bool {

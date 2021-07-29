@@ -1,12 +1,13 @@
-package calculator
+package calculator_test
 
 import (
 	"fmt"
 	"testing"
+
+	calculator "github.com/DavudSafarli/design-calculator-challenge"
 )
 
-func TestCalculator(t *testing.T) {
-
+func TestValidExpressions(t *testing.T) {
 	tests := []struct {
 		input string
 		want  float64
@@ -33,18 +34,52 @@ func TestCalculator(t *testing.T) {
 		{"3*(4*5^2)/6+7-8", 49},
 		{"(0-10)/(20/2^2*5/5)*8-2", -18},
 		{"2.5*4.0+2", 12},
+		{"2.5(4.0+2)", 15},
+		{"2.5((4.0+2))", 15},
+		{"2.5+((4.0+2))", 8.5},
 	}
 
 	for _, tt := range tests {
-		testName := fmt.Sprint("Calculating", tt.input)
+		testName := fmt.Sprint("Calculating ", tt.input)
 		t.Run(testName, func(t *testing.T) {
-			c := NewCalculator()
-			actual := c.Eval(tt.input)
+			calc := calculator.New()
+			actual, evalErr := calc.Eval(tt.input)
+
+			noerr := calculator.EvalError{}
+			if evalErr != noerr {
+				t.Fatalf("expected no error")
+			}
 
 			if actual != tt.want {
-				t.Fatalf("expected: %v\nactual: %v", tt.want, actual)
+				t.Fatalf("\nexpected: %v\nactual  : %v", tt.want, actual)
 			}
 		})
 	}
 
+}
+
+func TestInvalidExpressions(t *testing.T) {
+	tests := []struct {
+		input string
+		err   calculator.EvalError
+	}{
+		{"1+)", calculator.EvalError{calculator.ErrOperationBeforeRightParacentesis, 2, 3}},
+		{"(3))", calculator.EvalError{calculator.ErrInconsistentParacentesisCount, 3, 4}},
+		{"(5+/4", calculator.EvalError{calculator.Err2Operators, 3, 4}},
+		{"((*5+4", calculator.EvalError{calculator.ErrOperationAfterLeftParacantesis, 2, 3}},
+		{"*5+4", calculator.EvalError{calculator.ErrCannotStartWithOperator, 0, 1}},
+		{"(5", calculator.EvalError{calculator.ErrInconsistentParacentesisCount, -1, -1}},
+		{"  1.2+*", calculator.EvalError{calculator.Err2Operators, 6, 7}},
+	}
+
+	for _, tt := range tests {
+		testName := fmt.Sprint("Calculating ", tt.input)
+		t.Run(testName, func(t *testing.T) {
+			c := calculator.New()
+			_, evalErr := c.Eval(tt.input)
+			if evalErr != tt.err {
+				t.Fatalf("\nexpected: %v\nactual  : %v", tt.err, evalErr)
+			}
+		})
+	}
 }

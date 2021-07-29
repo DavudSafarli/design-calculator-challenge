@@ -1,6 +1,7 @@
 package calculator
 
 import (
+	"errors"
 	"strconv"
 
 	"github.com/DavudSafarli/design-calculator-challenge/lexer"
@@ -19,22 +20,54 @@ type Calculator struct {
 	lexer lexer.Lexer
 }
 
-func NewCalculator() Calculator {
+func New() Calculator {
 	lexer := buildLexerWithBODMASSupport()
 	return Calculator{
 		lexer: lexer,
 	}
 }
 
-func (c Calculator) Eval(input string) float64 {
-	lexerTokens, _ := c.lexer.Lex(input)
-	tokens := make([]Token, len(lexerTokens))
+// EvalError gives info about what was the error, where it starts and where it ends in the user input
+// example:
+// user input: " 1+*"
+// err: EvalError{Err2Operators, 3, 4}
+// (3, 4) represents the position of "*" which can be used to visualize the error in the front-facing application
+type EvalError struct {
+	Err      error
+	StartPos int
+	EndPos   int
+}
 
+// Eval calculates given mathematical expression and returns the result
+func (c Calculator) Eval(input string) (float64, EvalError) {
+	return c.eval(input)
+}
+
+// eval calculates the expression by going through following steps:
+// - performs lexical analysis which generates sequence of Tokens.
+// - validate the expression, report the error and invalid index position.
+// - parses the Tokens and builds an expression tree, where each node is a `Calculatable`.
+// - running the calculation process starting from the head node of the tree and getting the result
+func (c Calculator) eval(input string) (float64, EvalError) {
+	lexerTokens, _ := c.lexer.Lex(input)
+	tokens := make([]Token, 0, len(lexerTokens))
+
+	// convert `lexer.Token`s to original `Token`s defined by us
 	for _, v := range lexerTokens {
 		tokens = append(tokens, v.(Token))
 	}
+
+	invalidTokenPos, err := validateExpression(tokens)
+	if err != nil {
+		if invalidTokenPos != -1 {
+			startPos, endPos := getCharPosFromTokenPos(tokens, invalidTokenPos)
+			return 0, EvalError{err, startPos, endPos}
+		}
+		return 0, EvalError{err, -1, -1}
+	}
+
 	headNode := c.buildExpressionTree(tokens)
-	return headNode.Calculate()
+	return headNode.Calculate(), EvalError{}
 }
 
 func (c Calculator) buildExpressionTree(tokens []Token) Calculatable {
@@ -67,6 +100,9 @@ func (c Calculator) buildExpressionTree(tokens []Token) Calculatable {
 	}
 	prev := Token{}
 	for _, token := range tokens {
+		if token.IsSpace() {
+			continue
+		}
 		if token.IsNum() {
 			val, _ := strconv.ParseFloat(token.Value, 64)
 			postfix.Push(NumNode{val})
@@ -116,16 +152,15 @@ func buildLexerWithBODMASSupport() lexer.Lexer {
 		return func(l *lexer.Lexer) (token lexer.Token, found bool) {
 			r, _ := l.ReadNext()
 			if r == ch {
-				return Token{tokenType, ""}, true
+				return Token{tokenType, string(ch)}, true
 			}
 			l.Unread()
 			return nil, false
 		}
 	}
-
+	spaces := []rune{' ', '\t', '\n'}
 	return lexer.NewLexer(lexer.Options{
-		Tokens:      []int{NUM, ADD, SUB, MUL, DIV, POW, L_PAR, R_PAR},
-		CharsToPass: []rune{' ', '\t', '\n'},
+		Tokens: []int{NUM, ADD, SUB, MUL, DIV, POW, L_PAR, R_PAR, SPACE},
 		Matchers: map[int]lexer.MatcherFunc{
 			ADD:   createOneCharMatcher('+', ADD),
 			SUB:   createOneCharMatcher('-', SUB),
@@ -141,6 +176,71 @@ func buildLexerWithBODMASSupport() lexer.Lexer {
 				}
 				return Token{NUM, val}, true
 			},
+			SPACE: func(l *lexer.Lexer) (token lexer.Token, found bool) {
+				val, ok := l.ReadUntil(spaces)
+				if !ok {
+					return Token{}, false
+				}
+				return Token{SPACE, val}, true
+			},
 		},
 	})
+}
+
+var ErrOperationBeforeRightParacentesis = errors.New("cannot have an operation before a closing-paracentesis")
+var ErrInconsistentParacentesisCount = errors.New("inconsistent paracentesis count")
+var Err2Operators = errors.New("cannot have 2 operators side by side")
+var ErrOperationAfterLeftParacantesis = errors.New("cannot have an operation after an opening-paracentesis")
+var ErrCannotStartWithOperator = errors.New("expression cannot start with an operator")
+
+// validateExpression checks if expression is valid. returns the invalid index of the Token
+// -1 means that, even though there was an error, position cannot be found
+func validateExpression(tokens []Token) (int, error) {
+	openParCount := 0
+	prev := Token{}
+	for i, token := range tokens {
+		if token.IsLeftParacentesis() {
+			openParCount++
+		}
+		// case: "..1+)"
+		if token.IsRightParacentesis() && prev.IsOP() {
+			return i, ErrOperationBeforeRightParacentesis
+		}
+		// case: "(3))"
+		if token.IsRightParacentesis() && openParCount == 0 {
+			return i, ErrInconsistentParacentesisCount
+		}
+		if token.IsRightParacentesis() {
+			openParCount--
+		}
+
+		// case: "3/*4"
+		if token.IsOP() && prev.IsOP() {
+			return i, Err2Operators
+		}
+		// case: "3(+"
+		if token.IsOP() && prev.IsLeftParacentesis() {
+			return i, ErrOperationAfterLeftParacantesis
+		}
+		// case: "*5"
+		if token.IsOP() && i == 0 {
+			return i, ErrCannotStartWithOperator
+		}
+
+		prev = token
+	}
+
+	// (5+4
+	if openParCount != 0 {
+		return -1, ErrInconsistentParacentesisCount
+	}
+	return 0, nil
+}
+
+func getCharPosFromTokenPos(tokens []Token, tokenPos int) (startPos, endPos int) {
+	for i := 0; i < tokenPos; i++ {
+		startPos += len(tokens[i].Value)
+	}
+	endPos = startPos + len(tokens[tokenPos].Value)
+	return startPos, endPos
 }
