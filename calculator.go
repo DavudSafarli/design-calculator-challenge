@@ -2,6 +2,7 @@ package calculator
 
 import (
 	"errors"
+	"fmt"
 	"strconv"
 
 	"github.com/DavudSafarli/design-calculator-challenge/lexer"
@@ -38,8 +39,12 @@ type EvalError struct {
 	EndPos   int
 }
 
+func (e EvalError) Error() string {
+	return fmt.Sprintf("%s in position (%v, %v)", e.Err.Error(), e.StartPos, e.EndPos)
+}
+
 // Eval calculates given mathematical expression and returns the result
-func (c Calculator) Eval(input string) (float64, EvalError) {
+func (c Calculator) Eval(input string) (float64, error) {
 	return c.eval(input)
 }
 
@@ -48,8 +53,11 @@ func (c Calculator) Eval(input string) (float64, EvalError) {
 // - validate the expression, report the error and invalid index position.
 // - parses the Tokens and builds an expression tree, where each node is a `Calculatable`.
 // - running the calculation process starting from the head node of the tree and getting the result
-func (c Calculator) eval(input string) (float64, EvalError) {
-	lexerTokens, _ := c.lexer.Lex(input)
+func (c Calculator) eval(input string) (float64, error) {
+	lexerTokens, err := c.lexer.Lex(input)
+	if err != nil {
+		return 0, err
+	}
 	tokens := make([]Token, 0, len(lexerTokens))
 
 	// convert `lexer.Token`s to original `Token`s defined by us
@@ -67,7 +75,7 @@ func (c Calculator) eval(input string) (float64, EvalError) {
 	}
 
 	headNode := c.buildExpressionTree(tokens)
-	return headNode.Calculate(), EvalError{}
+	return headNode.Calculate(), nil
 }
 
 func (c Calculator) buildExpressionTree(tokens []Token) Calculatable {

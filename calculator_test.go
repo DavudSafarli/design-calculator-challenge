@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	calculator "github.com/DavudSafarli/design-calculator-challenge"
+	"github.com/DavudSafarli/design-calculator-challenge/lexer"
 )
 
 func TestValidExpressions(t *testing.T) {
@@ -45,9 +46,8 @@ func TestValidExpressions(t *testing.T) {
 			calc := calculator.New()
 			actual, evalErr := calc.Eval(tt.input)
 
-			noerr := calculator.EvalError{}
-			if evalErr != noerr {
-				t.Fatalf("expected no error")
+			if evalErr != nil {
+				t.Fatalf("\nexpected: nil\nactual  : %v", evalErr)
 			}
 
 			if actual != tt.want {
@@ -61,7 +61,7 @@ func TestValidExpressions(t *testing.T) {
 func TestInvalidExpressions(t *testing.T) {
 	tests := []struct {
 		input string
-		err   calculator.EvalError
+		err   error
 	}{
 		{"1+)", calculator.EvalError{calculator.ErrOperationBeforeRightParacentesis, 2, 3}},
 		{"(3))", calculator.EvalError{calculator.ErrInconsistentParacentesisCount, 3, 4}},
@@ -70,6 +70,26 @@ func TestInvalidExpressions(t *testing.T) {
 		{"*5+4", calculator.EvalError{calculator.ErrCannotStartWithOperator, 0, 1}},
 		{"(5", calculator.EvalError{calculator.ErrInconsistentParacentesisCount, -1, -1}},
 		{"  1.2+*", calculator.EvalError{calculator.Err2Operators, 6, 7}},
+	}
+
+	for _, tt := range tests {
+		testName := fmt.Sprint("Calculating ", tt.input)
+		t.Run(testName, func(t *testing.T) {
+			c := calculator.New()
+			_, evalErr := c.Eval(tt.input)
+			if evalErr != tt.err {
+				t.Fatalf("\nexpected: %v\nactual  : %v", tt.err, evalErr)
+			}
+		})
+	}
+}
+
+func TestInvalidInputs(t *testing.T) {
+	tests := []struct {
+		input string
+		err   error
+	}{
+		{"5+&&??", lexer.UnknownSymbolError{Symbol: '&'}},
 	}
 
 	for _, tt := range tests {

@@ -3,13 +3,56 @@
 Simple calculator application, written in Go.
 Supports basic `BODMAS` operations.
 
-
 Example usage:
-```
+```go
 func main() {
-    c := calculator.New()
-    res, err := c.Eval("5+5")
-    fmt.Println(res, err)
+	c := calculator.New()
+	res, err := c.Eval("5+5")
+	fmt.Println(res, err) // 10, <nil>
+}
+```
+
+Handling error cases:
+```go
+func main() {
+	c := calculator.New()
+	res, err := c.Eval("?5+5")
+	fmt.Println(res, err) // 0, unknown character '?'
+
+	if e, ok := err.(lexer.UnknownSymbolError); ok {
+		fmt.Printf("cannot use %q symbol\n", e.Symbol)
+	}
+}
+```
+
+```go
+func main() {
+	c := calculator.New()
+
+	input := "5+*5"
+	res, err := c.Eval(input)
+	fmt.Println(res, err) // 0, cannot have 2 operators side by side in position (2, 3)
+
+	if evalErr, ok := err.(calculator.EvalError); ok {
+        // show invalid char with 1 preceding and succeeding characters
+		from := max(0, evalErr.StartPos-1)
+		to := min(len(input), evalErr.EndPos+1)
+		invalidPart := input[from:to]
+		fmt.Printf("%v; %q", evalErr.Err, invalidPart) // cannot have 2 operators side by side; "+*5"
+	}
+}
+
+func max(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
+}
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }
 ```
 
