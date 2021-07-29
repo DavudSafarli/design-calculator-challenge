@@ -2,6 +2,7 @@ package lexer
 
 import (
 	"bufio"
+	"fmt"
 	"io"
 	"strings"
 )
@@ -10,25 +11,22 @@ type Token interface{}
 type MatcherFunc func(*Lexer) (Token Token, found bool)
 
 type Lexer struct {
-	tokens      []int
-	matchers    map[int]MatcherFunc
-	charsToPass []rune
+	tokens   []int
+	matchers map[int]MatcherFunc
 
 	r   *bufio.Reader
 	err error
 }
 
 type Options struct {
-	Tokens      []int
-	Matchers    map[int]MatcherFunc
-	CharsToPass []rune
+	Tokens   []int
+	Matchers map[int]MatcherFunc
 }
 
 func NewLexer(ops Options) Lexer {
 	return Lexer{
-		tokens:      ops.Tokens,
-		matchers:    ops.Matchers,
-		charsToPass: ops.CharsToPass,
+		tokens:   ops.Tokens,
+		matchers: ops.Matchers,
 	}
 }
 
@@ -37,23 +35,25 @@ func (l *Lexer) Lex(input string) ([]Token, error) {
 	r := strings.NewReader(input)
 	br := bufio.NewReader(r)
 	l.r = br
+	l.err = nil
 	tokens := []Token{}
 
 OUTER:
 	for {
-		l.passUnneededChars()
 		if l.err == io.EOF {
 			break
 		}
 		if l.err != nil {
 			return nil, l.err
 		}
+		var token Token
+		var found bool
 		for _, tokenType := range l.tokens {
 			matcherFn, ok := l.matchers[tokenType]
 			if !ok {
 				panic("no matcher exists for ..")
 			}
-			token, found := matcherFn(l)
+			token, found = matcherFn(l)
 			if found {
 				tokens = append(tokens, token)
 			}
@@ -64,6 +64,11 @@ OUTER:
 			if found {
 				break
 			}
+		}
+
+		if !found {
+			ch, _ := l.ReadNext()
+			return nil, fmt.Errorf("unknown character %q", ch)
 		}
 	}
 	return tokens, nil
@@ -103,7 +108,7 @@ func (l *Lexer) ReadIntOrFloat() (string, bool) {
 	// TODO: can't unread more than 1 times. One options is keep a customizable-sized Queue for read Runes.
 	// For now, treat cases like "123." as "123.0" and take them as valid floats
 	if !ok {
-		return decimal, true
+		return decimal + ".", true
 	}
 	return decimal + "." + floating, ok
 }
@@ -144,26 +149,36 @@ func (l *Lexer) ReadBetween(from, to rune) (string, bool) {
 	return sb.String(), true
 }
 
-func (l *Lexer) passUnneededChars() {
+func (l *Lexer) ReadUntil(runes []rune) (string, bool) {
 	ch, err := l.ReadNext()
+	if err != nil {
+		return "", false
+	}
 
-	for {
-		if err == io.EOF {
-			return
-		}
-		isUnneeded := false
-		for _, v := range l.charsToPass {
+	isOneOf := func(ch rune) bool {
+		for _, v := range runes {
 			if ch == v {
-				isUnneeded = true
-				break
+				return true
 			}
 		}
-		if !isUnneeded {
-			l.Unread()
-			return
-		}
-		ch, err = l.ReadNext()
+		return false
 	}
+	if !isOneOf(ch) {
+		l.Unread()
+		return "", false
+	}
+
+	sb := strings.Builder{}
+	for isOneOf(ch) {
+		sb.WriteRune(ch)
+		ch, err = l.ReadNext()
+		if err != nil {
+			return sb.String(), true
+		}
+	}
+	// no error, no io.EOF
+	l.Unread()
+	return sb.String(), true
 }
 
 func isBetween(ch, from, to rune) bool {

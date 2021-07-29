@@ -39,7 +39,7 @@ func main() {
 }
 ```
 
-You can also make use of built-in Lexer functions: `ReadInt`, `ReadIntOrFloat`, `ReadBetween`
+You can also make use of built-in Lexer functions: `ReadInt`, `ReadIntOrFloat`, `ReadBetween`, `ReadUntil`
 ```go
 func main3() {
 	type Token struct {
@@ -78,4 +78,63 @@ func main3() {
 	fmt.Println(lexerTokens)
 	// [{TOKEN_FLOAT 5} {TOKEN_ADD +} {TOKEN_FLOAT 5.6}]
 }
+```
+
+
+Full Lexer example for simple calculator is as follows:
+```go
+const (
+	NUM = iota
+	ADD
+	SUB
+	MUL
+	DIV
+	POW
+	L_PAR
+	R_PAR
+
+	SPACE
+)
+
+func buildLexerWithBODMASSupport() lexer.Lexer {
+	// 1-char matcher function for Lexer
+	createOneCharMatcher := func(ch rune, tokenType int) lexer.MatcherFunc {
+		return func(l *lexer.Lexer) (token lexer.Token, found bool) {
+			r, _ := l.ReadNext()
+			if r == ch {
+				return Token{tokenType, ""}, true
+			}
+			l.Unread()
+			return nil, false
+		}
+	}
+
+	return lexer.NewLexer(lexer.Options{
+		Tokens:      []int{NUM, ADD, SUB, MUL, DIV, POW, L_PAR, R_PAR, SPACE},
+		Matchers: map[int]lexer.MatcherFunc{
+			ADD:   createOneCharMatcher('+', ADD),
+			SUB:   createOneCharMatcher('-', SUB),
+			MUL:   createOneCharMatcher('*', MUL),
+			DIV:   createOneCharMatcher('/', DIV),
+			POW:   createOneCharMatcher('^', POW),
+			L_PAR: createOneCharMatcher('(', L_PAR),
+			R_PAR: createOneCharMatcher(')', R_PAR),
+			NUM: func(l *lexer.Lexer) (token lexer.Token, found bool) {
+				val, ok := l.ReadIntOrFloat()
+				if !ok {
+					return Token{}, false
+				}
+				return Token{NUM, val}, true
+			},
+			SPACE: func(l *lexer.Lexer) (token lexer.Token, found bool) {
+				val, ok := l.ReadUntil([]rune{' ', '\t', '\n'})
+				if !ok {
+					return Token{}, false
+				}
+				return Token{SPACE, val}, true
+			},
+		},
+	})
+}
+
 ```

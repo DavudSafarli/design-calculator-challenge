@@ -17,6 +17,8 @@ const (
 	POW
 	L_PAR
 	R_PAR
+
+	SPACE
 )
 
 func createOneCharMatcher(ch rune, tokenType int) lexer.MatcherFunc {
@@ -36,8 +38,7 @@ type Token struct {
 
 func TestLexer(t *testing.T) {
 	lex := lexer.NewLexer(lexer.Options{
-		Tokens:      []int{NUM, ADD, SUB, MUL, DIV, POW, L_PAR, R_PAR},
-		CharsToPass: []rune{' ', '\t', '\n'},
+		Tokens: []int{NUM, ADD, SUB, MUL, DIV, POW, L_PAR, R_PAR, SPACE},
 		Matchers: map[int]lexer.MatcherFunc{
 			ADD:   createOneCharMatcher('+', ADD),
 			SUB:   createOneCharMatcher('-', SUB),
@@ -53,6 +54,13 @@ func TestLexer(t *testing.T) {
 				}
 				return Token{NUM, val}, true
 			},
+			SPACE: func(l *lexer.Lexer) (token lexer.Token, found bool) {
+				val, ok := l.ReadUntil([]rune{' ', '\t', '\n'})
+				if !ok {
+					return Token{}, false
+				}
+				return Token{SPACE, val}, true
+			},
 		},
 	})
 
@@ -61,13 +69,13 @@ func TestLexer(t *testing.T) {
 		want  []lexer.Token
 	}{
 		{"123456789", []lexer.Token{Token{NUM, "123456789"}}},
-		{"  1  ", []lexer.Token{Token{NUM, "1"}}},
+		{"  1  ", []lexer.Token{Token{SPACE, "  "}, Token{NUM, "1"}, Token{SPACE, "  "}}},
 		{"+-*/^()", []lexer.Token{Token{ADD, ""}, Token{SUB, ""}, Token{MUL, ""}, Token{DIV, ""}, Token{POW, ""}, Token{L_PAR, ""}, Token{R_PAR, ""}}},
 		{
 			"7-7/7+7*14",
 			[]lexer.Token{Token{NUM, "7"}, Token{SUB, ""}, Token{NUM, "7"}, Token{DIV, ""}, Token{NUM, "7"}, Token{ADD, ""}, Token{NUM, "7"}, Token{MUL, ""}, Token{NUM, "14"}},
 		},
-		{"123.456", []lexer.Token{Token{NUM, "123.456"}}},
+		{"123.456+5.", []lexer.Token{Token{NUM, "123.456"}, Token{ADD, ""}, Token{NUM, "5."}}},
 		{"2.25*4", []lexer.Token{Token{NUM, "2.25"}, Token{MUL, ""}, Token{NUM, "4"}}},
 		{
 			"(2+2.22)",
