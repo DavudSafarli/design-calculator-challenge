@@ -18,27 +18,30 @@ type Token struct {
 }
 
 func (t Token) IsNum() bool {
-	return t.Type == NUM
+	return t.Type == NUM && t.Value != ""
 }
 
-func (t Token) IsOperand() bool {
+func (t Token) IsOP() bool {
 	return t.Type == ADD || t.Type == SUB || t.Type == MUL || t.Type == DIV || t.Type == POW
 }
 
-func (t Token) IsAddOperand() bool {
+func (t Token) IsAddOP() bool {
 	return t.Type == ADD
 }
-func (t Token) IsSubOperand() bool {
+func (t Token) IsSubOP() bool {
 	return t.Type == SUB
 }
-func (t Token) IsMulOperand() bool {
+func (t Token) IsMulOP() bool {
 	return t.Type == MUL
 }
-func (t Token) IsDivOperand() bool {
+func (t Token) IsDivOP() bool {
 	return t.Type == DIV
 }
-func (t Token) IsPowOperand() bool {
+func (t Token) IsPowOP() bool {
 	return t.Type == POW
+}
+func (t Token) IsParacentesis() bool {
+	return t.Type == L_PAR || t.Type == R_PAR
 }
 func (t Token) IsLeftParacentesis() bool {
 	return t.Type == L_PAR

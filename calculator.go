@@ -39,73 +39,72 @@ func (c Calculator) Eval(input string) float64 {
 
 func (c Calculator) buildExpressionTree(tokens []Token) Calculatable {
 	var postfix CalculatableStack
-	var operands TokenStack
+	var operators TokenStack
 
 	// addOperandNode takes 2 node from stack, creates a new Expression Node like below,
 	//     +
 	//   /   \
 	//  a     b
 	// and pushes it back to the slice of postfix nodes
-	addOperandNode := func(operand Token) {
+	addOperandNode := func(op Token) {
 		b, _ := postfix.Pop()
 		a, _ := postfix.Pop()
-		if operand.IsAddOperand() {
+		if op.IsAddOP() {
 			postfix.Push(AddNode{a, b})
 		}
-		if operand.IsSubOperand() {
+		if op.IsSubOP() {
 			postfix.Push(SubNode{a, b})
 		}
-		if operand.IsMulOperand() {
+		if op.IsMulOP() {
 			postfix.Push(MulNode{a, b})
 		}
-		if operand.IsDivOperand() {
+		if op.IsDivOP() {
 			postfix.Push(DivNode{a, b})
 		}
-		if operand.IsPowOperand() {
+		if op.IsPowOP() {
 			postfix.Push(PowNode{a, b})
 		}
 	}
-
+	prev := Token{}
 	for _, token := range tokens {
 		if token.IsNum() {
 			val, _ := strconv.ParseFloat(token.Value, 64)
 			postfix.Push(NumNode{val})
-			continue
-		}
-		if token.IsOperand() {
+		} else if token.IsOP() {
 			for {
-				prevOperand, exists := operands.Top()
-				if !exists || prevOperand.Type == L_PAR {
+				prevOP, exists := operators.Top()
+				if !exists || prevOP.Type == L_PAR {
 					break
 				}
-				if precedence[prevOperand.Type] < precedence[token.Type] {
+				if precedence[prevOP.Type] < precedence[token.Type] {
 					break
 				}
-				operands.Pop() // remove element
-				addOperandNode(prevOperand)
+				operators.Pop() // remove element
+				addOperandNode(prevOP)
 
 			}
-			operands.Push(token)
-			continue
-		}
-		if token.IsLeftParacentesis() {
-			operands.Push(token)
-			continue
-		}
-		if token.IsRightParacentesis() {
+			operators.Push(token)
+		} else if token.IsLeftParacentesis() {
+			// if there is a NUM before LEFT_PAR, then consider it as multiplication
+			if prev.IsNum() {
+				operators.Push(Token{MUL, ""})
+			}
+			operators.Push(token)
+		} else if token.IsRightParacentesis() {
 			for {
-				prevOperand, _ := operands.Pop()
-				if prevOperand.Type == L_PAR {
+				prevOP, _ := operators.Pop()
+				if prevOP.Type == L_PAR {
 					break
 				}
-				addOperandNode(prevOperand)
+				addOperandNode(prevOP)
 			}
 		}
+		prev = token
 	}
 
-	for !operands.IsEmpty() {
-		operand, _ := operands.Pop()
-		addOperandNode(operand)
+	for !operators.IsEmpty() {
+		op, _ := operators.Pop()
+		addOperandNode(op)
 	}
 	node, _ := postfix.Pop()
 	return node
