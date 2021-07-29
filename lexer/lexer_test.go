@@ -97,3 +97,20 @@ func TestLexer(t *testing.T) {
 	}
 
 }
+
+func TestLexeInvalidInput(t *testing.T) {
+	lex := lexer.NewLexer(lexer.Options{
+		Tokens: []int{ADD},
+		Matchers: map[int]lexer.MatcherFunc{
+			ADD: createOneCharMatcher('+', ADD),
+		},
+	})
+
+	_, err := lex.Lex("+-")
+	expected := lexer.UnknownSymbolError{'-'}
+
+	if err != expected {
+		t.Fatal(err)
+	}
+
+}

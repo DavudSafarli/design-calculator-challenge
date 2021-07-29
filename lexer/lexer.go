@@ -30,6 +30,14 @@ func NewLexer(ops Options) Lexer {
 	}
 }
 
+type UnknownSymbolError struct {
+	Symbol rune
+}
+
+func (e UnknownSymbolError) Error() string {
+	return fmt.Sprintf("unknown character %q", e.Symbol)
+}
+
 func (l *Lexer) Lex(input string) ([]Token, error) {
 
 	r := strings.NewReader(input)
@@ -68,7 +76,7 @@ OUTER:
 
 		if !found {
 			ch, _ := l.ReadNext()
-			return nil, fmt.Errorf("unknown character %q", ch)
+			return nil, UnknownSymbolError{ch}
 		}
 	}
 	return tokens, nil
